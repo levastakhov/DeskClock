@@ -4,37 +4,39 @@
     android:layout_height="match_parent"
     android:background="#000000"
     android:orientation="vertical"
-    android:weightSum="3">
+    android:weightSum="2">
 
+    <!-- Верхняя половина -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="16dp">
+        android:layout_weight="1">
 
         <TextSwitcher
             android:id="@+id/topInfoSwitcher"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_centerInParent="true" />
+
     </RelativeLayout>
 
+    <!-- Нижняя половина -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="2">
+        android:layout_weight="1">
 
         <TextClock
             android:id="@+id/clockView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_centerHorizontal="true"
-            android:layout_marginBottom="16dp"
-            android:format12Hour="HH:mm:ss"
-            android:format24Hour="HH:mm:ss"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:format12Hour="HH:mm"
+            android:format24Hour="HH:mm"
             android:textColor="#FFFFFF"
-            android:textSize="100sp"
+            android:textSize="140sp"
             android:textStyle="bold" />
+
     </RelativeLayout>
+
 </LinearLayout>
