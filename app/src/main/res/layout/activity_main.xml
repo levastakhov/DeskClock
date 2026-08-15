@@ -35,8 +35,9 @@
         <TextClock
             android:id="@+id/clockView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_horizontal|top"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:gravity="center_horizontal"
             android:includeFontPadding="false"
             android:translationY="-60dp"
             android:format12Hour="HH:mm"
