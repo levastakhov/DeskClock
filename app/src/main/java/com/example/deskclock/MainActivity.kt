@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
         topInfoSwitcher = findViewById(R.id.topInfoSwitcher)
         topInfoSwitcher.setFactory {
             TextView(this@MainActivity).apply {
-                textSize = 56f
+                textSize = 80f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 maxLines = 1
@@ -59,8 +59,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getCurrentDateString(): String {
-        val sdf = SimpleDateFormat("EEEE, d MMMM", Locale("ru"))
-        return sdf.format(Date()).uppercase()
+    val sdf = SimpleDateFormat("E dd.MM", Locale("ru"))
+    val formattedDate = sdf.format(Date())
+    return formattedDate.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("ru")) else it.toString() }
     }
 
     private fun hideSystemUI() {
