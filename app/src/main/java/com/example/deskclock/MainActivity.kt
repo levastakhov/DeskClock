@@ -79,12 +79,13 @@ class MainActivity : AppCompatActivity() {
         handler.post(weatherRunnable)
     }
 
-    private fun fetchWeatherData() {
-        val url = "[https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true](https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true)"
+  private fun fetchWeatherData() {
+    val rawUrl = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
+    val httpUrl = rawUrl.toHttpUrlOrNull() ?: return
 
-        val request = Request.Builder()
-            .url(url)
-            .build()
+    val request = Request.Builder()
+        .url(httpUrl)
+        .build()
 
         httpClient.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
