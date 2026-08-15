@@ -33,7 +33,7 @@ class MainActivity : AppCompatActivity() {
         topInfoSwitcher = findViewById(R.id.topInfoSwitcher)
         topInfoSwitcher.setFactory {
             TextView(this@MainActivity).apply {
-                textSize = 36f
+                textSize = 56f
                 setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 maxLines = 1
