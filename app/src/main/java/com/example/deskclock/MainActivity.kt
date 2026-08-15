@@ -12,6 +12,7 @@ import android.widget.TextSwitcher
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import okhttp3.*
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -79,47 +80,46 @@ class MainActivity : AppCompatActivity() {
         handler.post(weatherRunnable)
     }
 
-  private fun fetchWeatherData() {
-    val rawUrl = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
-    val httpUrl = rawUrl.toHttpUrlOrNull() ?: return
+private fun fetchWeatherData() {
+    val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
+    val httpUrl = urlString.toHttpUrlOrNull() ?: return
 
     val request = Request.Builder()
         .url(httpUrl)
         .build()
 
-        httpClient.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                // В случае ошибки сети оставляем предыдущее значение или выводим индикатор
+    httpClient.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            handler.post {
+                if (currentWeatherText == "⌛ Загрузка...") {
+                    currentWeatherText = "⚠️ Нет сети"
+                }
+            }
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            response.use {
+                if (!response.isSuccessful) return
+
+                val responseBody = response.body?.string() ?: return
+                val json = JSONObject(responseBody)
+                val currentWeather = json.getJSONObject("current_weather")
+
+                val temp = currentWeather.getDouble("temperature").toInt()
+                val weatherCode = currentWeather.getInt("weathercode")
+
+                val tempString = if (temp > 0) "+$temp°C" else "$temp°C"
+                val (icon, description) = decodeWeatherCode(weatherCode)
+
+                val formattedWeather = "$icon $tempString $description"
+
                 handler.post {
-                    if (currentWeatherText == "⌛ Загрузка...") {
-                        currentWeatherText = "⚠️ Нет сети"
-                    }
+                    currentWeatherText = formattedWeather
                 }
             }
-
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (!response.isSuccessful) return
-
-                    val responseBody = response.body?.string() ?: return
-                    val json = JSONObject(responseBody)
-                    val currentWeather = json.getJSONObject("current_weather")
-
-                    val temp = currentWeather.getDouble("temperature").toInt()
-                    val weatherCode = currentWeather.getInt("weathercode")
-
-                    val tempString = if (temp > 0) "+$temp°C" else "$temp°C"
-                    val (icon, description) = decodeWeatherCode(weatherCode)
-
-                    val formattedWeather = "$icon $tempString $description"
-
-                    handler.post {
-                        currentWeatherText = formattedWeather
-                    }
-                }
-            }
-        })
-    }
+        }
+    })
+}
 
     private fun decodeWeatherCode(code: Int): Pair<String, String> {
         return when (code) {
