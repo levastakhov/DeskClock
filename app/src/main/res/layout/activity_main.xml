@@ -1,51 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
     android:clipChildren="false"
-    android:clipToPadding="false"
-    android:orientation="vertical"
-    android:weightSum="2">
+    android:clipToPadding="false">
 
-    <!-- Верхняя половина -->
-    <RelativeLayout
+    <!-- Верхний блок с инфой -->
+    <TextSwitcher
+        android:id="@+id/topInfoSwitcher"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipChildren="false"
-        android:clipToPadding="false">
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="32dp" />
 
-        <TextSwitcher
-            android:id="@+id/topInfoSwitcher"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_centerInParent="true" />
-
-    </RelativeLayout>
-
-    <!-- Нижняя половина -->
-    <RelativeLayout
+    <!-- Часы в нижней части экрана -->
+    <TextClock
+        android:id="@+id/clockView"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipChildren="false"
-        android:clipToPadding="false">
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="16dp"
+        android:gravity="center_horizontal"
+        android:includeFontPadding="false"
+        android:format12Hour="HH:mm"
+        android:format24Hour="HH:mm"
+        android:textColor="#FFFFFF"
+        android:textSize="220sp"
+        android:textStyle="bold" />
 
-        <TextClock
-            android:id="@+id/clockView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:gravity="center_horizontal"
-            android:includeFontPadding="false"
-            android:translationY="-60dp"
-            android:format12Hour="HH:mm"
-            android:format24Hour="HH:mm"
-            android:textColor="#FFFFFF"
-            android:textSize="240sp"
-            android:textStyle="bold" />
-
-    </RelativeLayout>
-
-</LinearLayout>
+</RelativeLayout>
