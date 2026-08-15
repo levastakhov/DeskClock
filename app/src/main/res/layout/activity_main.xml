@@ -26,7 +26,7 @@
         android:format12Hour="HH:mm"
         android:format24Hour="HH:mm"
         android:textColor="#FFFFFF"
-        android:textSize="220sp"
+        android:textSize="250sp"
         android:textStyle="bold" />
 
 </RelativeLayout>
