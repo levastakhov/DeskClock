@@ -35,7 +35,7 @@
             android:format24Hour="HH:mm"
             android:textColor="#FFFFFF"
             android:textSize="240sp"
-            android:translationY="-50dp"
+            android:translationY="-100dp"
             android:textStyle="bold" />
 
     </RelativeLayout>
