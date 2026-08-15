@@ -27,4 +27,8 @@ android {
 dependencies {
     implementation 'androidx.core:core-ktx:1.9.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    
+    // HTTP клиент для запросов к API погоды
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
 }
