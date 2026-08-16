@@ -18,6 +18,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,34 +26,35 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val httpClient = OkHttpClient()
 
-    private var isShowingWeather = true
+    private enum class DisplayMode { WEATHER, DATE }
+    private var currentMode = DisplayMode.WEATHER
     private var currentWeatherText = "⌛ Загрузка..."
 
-    // API-ключ от Яндекс Погоды
-    private val yandexApiKey = "2cca5a2a-c25a-4282-8712-2446b2f93dbb"
-
-    
     // Координаты (Томск)
     private val latitude = 56.4977
     private val longitude = 84.9744
 
     private val toggleRunnable = object : Runnable {
         override fun run() {
-            if (isShowingWeather) {
-                topInfoSwitcher.setText(currentWeatherText)
-            } else {
-                topInfoSwitcher.setText(getCurrentDateString())
+            when (currentMode) {
+                DisplayMode.WEATHER -> {
+                    topInfoSwitcher.setText(currentWeatherText)
+                    currentMode = DisplayMode.DATE
+                }
+                DisplayMode.DATE -> {
+                    topInfoSwitcher.setText(getCurrentDateString())
+                    currentMode = DisplayMode.WEATHER
+                }
             }
-            isShowingWeather = !isShowingWeather
-            handler.postDelayed(this, 20000)
+            handler.postDelayed(this, 20_000L)
         }
     }
 
     private val weatherRunnable = object : Runnable {
         override fun run() {
             fetchWeatherData()
-            // Обновляем погоду каждые 30 минут
-            handler.postDelayed(this, 30 * 60 * 1000L)
+            // Обновляем погоду каждые 15 минут
+            handler.postDelayed(this, 15 * 60 * 1000L)
         }
     }
 
@@ -73,18 +75,28 @@ class MainActivity : AppCompatActivity() {
                 maxLines = 1
             }
         }
+    }
 
+    override fun onResume() {
+        super.onResume()
+        hideSystemUI()
         handler.post(toggleRunnable)
         handler.post(weatherRunnable)
     }
 
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(toggleRunnable)
+        handler.removeCallbacks(weatherRunnable)
+    }
+
     private fun fetchWeatherData() {
-        val urlString = "https://api.weather.yandex.ru/v2/forecast?lat=$latitude&lon=$longitude"
+        // Запрос к бесплатному Open-Meteo без API-ключей
+        val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
         val httpUrl = urlString.toHttpUrlOrNull() ?: return
 
         val request = Request.Builder()
             .url(httpUrl)
-            .addHeader("X-Yandex-Weather-Key", yandexApiKey)
             .build()
 
         httpClient.newCall(request).enqueue(object : Callback {
@@ -107,20 +119,21 @@ class MainActivity : AppCompatActivity() {
 
                     val responseBody = response.body?.string() ?: return
                     val json = JSONObject(responseBody)
-                    val fact = json.getJSONObject("fact")
+                    val currentWeather = json.getJSONObject("current_weather")
 
-                    val temp = fact.getInt("temp")
-                    val condition = fact.getString("condition")
+                    val tempDouble = currentWeather.getDouble("temperature")
+                    val temp = tempDouble.roundToInt()
+                    val weatherCode = currentWeather.getInt("weathercode")
 
                     val tempString = if (temp > 0) "+$temp°C" else "$temp°C"
-                    val (icon, description) = decodeYandexCondition(condition)
+                    val (icon, description) = decodeWmoCode(weatherCode)
 
-                    val formattedWeather = "$icon $tempString $description"
+                    val formattedWeather = "$icon $tempString $description".trim()
 
                     handler.post {
                         currentWeatherText = formattedWeather
-                        // Обновляем текст сразу же, если в данный момент показывается погода
-                        if (!isShowingWeather) {
+                        // Обновляем текст сразу же, если в данный момент отображается погода
+                        if (currentMode == DisplayMode.DATE) {
                             topInfoSwitcher.setText(currentWeatherText)
                         }
                     }
@@ -129,25 +142,25 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun decodeYandexCondition(condition: String): Pair<String, String> {
-        return when (condition) {
-            "clear" -> Pair("☀️", "ЯСНО")
-            "partly-cloudy" -> Pair("⛅", "МАЛООБЛАЧНО")
-            "cloudy" -> Pair("⛅", "ОБЛАЧНО")
-            "overcast" -> Pair("☁️", "пасмурно")
-            "drizzle" -> Pair("🌧️", "морось")
-            "light-rain" -> Pair("🌧️", "НЕБОЛЬШОЙ ДОЖДЬ")
-            "rain" -> Pair("🌧️", "ДОЖДЬ")
-            "heavy-rain" -> Pair("🌧️", "СИЛЬНЫЙ ДОЖДЬ")
-            "showers" -> Pair("🌧️", "ЛИВЕНЬ")
-            "wet-snow" -> Pair("🌧️❄️", "ДОЖДЬ СО СНЕГОМ")
-            "light-snow" -> Pair("❄️", "НЕБОЛЬШОЙ СНЕГ")
-            "snow" -> Pair("❄️", "СНЕГ")
-            "snow-showers" -> Pair("❄️", "СНЕГОПАД")
-            "hail" -> Pair("🌨️", "ГРАД")
-            "thunderstorm" -> Pair("🌩️", "ГРОЗА")
-            "thunderstorm-with-rain" -> Pair("🌩️", "ГРОЗА С ДОЖДЕМ")
-            "thunderstorm-with-hail" -> Pair("🌩️", "ГРОЗА С ГРАДОМ")
+    // Расшифровка WMO-кодов погоды (World Meteorological Organization)
+    private fun decodeWmoCode(code: Int): Pair<String, String> {
+        return when (code) {
+            0 -> Pair("☀️", "ЯСНО")
+            1, 2 -> Pair("⛅", "МАЛООБЛАЧНО")
+            3 -> Pair("☁️", "ПАСМУРНО")
+            45, 48 -> Pair("🌫️", "ТУМАН")
+            51, 53, 55 -> Pair("🌧️", "МОРОСЬ")
+            56, 57 -> Pair("🌧️❄️", "ЛЕ ДЯНАЯ МОРОСЬ")
+            61, 63 -> Pair("🌧️", "ДОЖДЬ")
+            65 -> Pair("🌧️", "СИЛЬНЫЙ ДОЖДЬ")
+            66, 67 -> Pair("🌧️❄️", "ЗАМЕРЗАЮЩИЙ ДОЖДЬ")
+            71, 73 -> Pair("❄️", "СНЕГ")
+            75 -> Pair("❄️", "СИЛЬНЫЙ СНЕГ")
+            77 -> Pair("❄️", "СНЕЖНАЯ КРУПА")
+            80, 81, 82 -> Pair("🌧️", "ЛИВЕНЬ")
+            85, 86 -> Pair("❄️", "СНЕГОПАД")
+            95 -> Pair("🌩️", "ГРОЗА")
+            96, 99 -> Pair("🌩️", "ГРОЗА С ГРАДОМ")
             else -> Pair("🌡️", "")
         }
     }
@@ -169,8 +182,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Очищаем таймеры при закрытии или пересоздании Activity
-        handler.removeCallbacks(toggleRunnable)
-        handler.removeCallbacks(weatherRunnable)
+        httpClient.dispatcher.cancelAll()
     }
 }
