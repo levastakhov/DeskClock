@@ -30,30 +30,34 @@ class MainActivity : AppCompatActivity() {
     private var currentMode = DisplayMode.WEATHER
     private var currentWeatherText = "⌛ Загрузка..."
 
-    // Координаты (Томск)
+    private val apiKey = "4adf465a46e69ad085bb117b45fc0a67"
     private val latitude = 56.4977
     private val longitude = 84.9744
 
+    private val weatherDisplayDuration = 20_000L // 20 секунд
+    private val dateDisplayDuration = 10_000L    // 10 секунд
+
     private val toggleRunnable = object : Runnable {
         override fun run() {
-            when (currentMode) {
+            val nextDelay = when (currentMode) {
                 DisplayMode.WEATHER -> {
                     topInfoSwitcher.setText(currentWeatherText)
                     currentMode = DisplayMode.DATE
+                    weatherDisplayDuration
                 }
                 DisplayMode.DATE -> {
                     topInfoSwitcher.setText(getCurrentDateString())
                     currentMode = DisplayMode.WEATHER
+                    dateDisplayDuration
                 }
             }
-            handler.postDelayed(this, 20_000L)
+            handler.postDelayed(this, nextDelay)
         }
     }
 
     private val weatherRunnable = object : Runnable {
         override fun run() {
             fetchWeatherData()
-            // Обновляем погоду каждые 15 минут
             handler.postDelayed(this, 15 * 60 * 1000L)
         }
     }
@@ -80,7 +84,10 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         hideSystemUI()
+        handler.removeCallbacks(toggleRunnable)
         handler.post(toggleRunnable)
+        
+        handler.removeCallbacks(weatherRunnable)
         handler.post(weatherRunnable)
     }
 
@@ -91,8 +98,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchWeatherData() {
-        // Запрос к бесплатному Open-Meteo без API-ключей
-        val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true"
+        val urlString = "https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&appid=$apiKey&units=metric&lang=ru"
         val httpUrl = urlString.toHttpUrlOrNull() ?: return
 
         val request = Request.Builder()
@@ -119,20 +125,25 @@ class MainActivity : AppCompatActivity() {
 
                     val responseBody = response.body?.string() ?: return
                     val json = JSONObject(responseBody)
-                    val currentWeather = json.getJSONObject("current_weather")
 
-                    val tempDouble = currentWeather.getDouble("temperature")
-                    val temp = tempDouble.roundToInt()
-                    val weatherCode = currentWeather.getInt("weathercode")
-
+                    val main = json.getJSONObject("main")
+                    val temp = main.getDouble("temp").roundToInt()
                     val tempString = if (temp > 0) "+$temp°C" else "$temp°C"
-                    val (icon, description) = decodeWmoCode(weatherCode)
+
+                    val weatherArray = json.getJSONArray("weather")
+                    var icon = "🌡️"
+                    var description = ""
+
+                    if (weatherArray.length() > 0) {
+                        val weatherObj = weatherArray.getJSONObject(0)
+                        description = weatherObj.getString("description").uppercase(Locale("ru"))
+                        icon = decodeOpenWeatherIcon(weatherObj.getString("icon"))
+                    }
 
                     val formattedWeather = "$icon $tempString $description".trim()
 
                     handler.post {
                         currentWeatherText = formattedWeather
-                        // Обновляем текст сразу же, если в данный момент отображается погода
                         if (currentMode == DisplayMode.DATE) {
                             topInfoSwitcher.setText(currentWeatherText)
                         }
@@ -142,26 +153,18 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    // Расшифровка WMO-кодов погоды (World Meteorological Organization)
-    private fun decodeWmoCode(code: Int): Pair<String, String> {
-        return when (code) {
-            0 -> Pair("☀️", "ЯСНО")
-            1, 2 -> Pair("⛅", "МАЛООБЛАЧНО")
-            3 -> Pair("☁️", "ПАСМУРНО")
-            45, 48 -> Pair("🌫️", "ТУМАН")
-            51, 53, 55 -> Pair("🌧️", "МОРОСЬ")
-            56, 57 -> Pair("🌧️❄️", "ЛЕ ДЯНАЯ МОРОСЬ")
-            61, 63 -> Pair("🌧️", "ДОЖДЬ")
-            65 -> Pair("🌧️", "СИЛЬНЫЙ ДОЖДЬ")
-            66, 67 -> Pair("🌧️❄️", "ЗАМЕРЗАЮЩИЙ ДОЖДЬ")
-            71, 73 -> Pair("❄️", "СНЕГ")
-            75 -> Pair("❄️", "СИЛЬНЫЙ СНЕГ")
-            77 -> Pair("❄️", "СНЕЖНАЯ КРУПА")
-            80, 81, 82 -> Pair("🌧️", "ЛИВЕНЬ")
-            85, 86 -> Pair("❄️", "СНЕГОПАД")
-            95 -> Pair("🌩️", "ГРОЗА")
-            96, 99 -> Pair("🌩️", "ГРОЗА С ГРАДОМ")
-            else -> Pair("🌡️", "")
+    private fun decodeOpenWeatherIcon(iconCode: String): String {
+        return when (iconCode.take(2)) {
+            "01" -> "☀️" // clear sky
+            "02" -> "⛅" // few clouds
+            "03" -> "☁️" // scattered clouds
+            "04" -> "☁️" // broken/overcast clouds
+            "09" -> "🌧️" // shower rain
+            "10" -> "🌧️" // rain
+            "11" -> "🌩️" // thunderstorm
+            "13" -> "❄️" // snow
+            "50" -> "🌫️" // mist/fog
+            else -> "🌡️"
         }
     }
 
