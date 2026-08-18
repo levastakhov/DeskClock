@@ -30,7 +30,6 @@ class MainActivity : AppCompatActivity() {
     private var currentMode = DisplayMode.WEATHER
     private var currentWeatherText = "⌛ Загрузка..."
 
-    private val apiKey = "4adf465a46e69ad085bb117b45fc0a67"
     private val latitude = 56.4977
     private val longitude = 84.9744
 
@@ -58,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     private val weatherRunnable = object : Runnable {
         override fun run() {
             fetchWeatherData()
-            handler.postDelayed(this, 15 * 60 * 1000L)
+            handler.postDelayed(this, 15 * 60 * 1000L) // Обновление каждые 15 минут
         }
     }
 
@@ -98,7 +97,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchWeatherData() {
-        val urlString = "https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&appid=$apiKey&units=metric&lang=ru"
+        // Запрос к Open-Meteo с немецкой моделью DWD ICON
+        val urlString = "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=$latitude" +
+                "&longitude=$longitude" +
+                "&current=temperature_2m,weather_code" +
+                "&models=icon_seamless" +
+                "&wind_speed_unit=ms" +
+                "&timezone=Asia/Novosibirsk"
+
         val httpUrl = urlString.toHttpUrlOrNull() ?: return
 
         val request = Request.Builder()
@@ -126,21 +133,14 @@ class MainActivity : AppCompatActivity() {
                     val responseBody = response.body?.string() ?: return
                     val json = JSONObject(responseBody)
 
-                    val main = json.getJSONObject("main")
-                    val temp = main.getDouble("temp").roundToInt()
+                    val current = json.getJSONObject("current")
+                    val temp = current.getDouble("temperature_2m").roundToInt()
+                    val weatherCode = current.getInt("weather_code")
+
                     val tempString = if (temp > 0) "+$temp°C" else "$temp°C"
+                    val icon = decodeWmoWeatherCode(weatherCode)
 
-                    val weatherArray = json.getJSONArray("weather")
-                    var icon = "🌡️"
-                    var description = ""
-
-                    if (weatherArray.length() > 0) {
-                        val weatherObj = weatherArray.getJSONObject(0)
-                        description = weatherObj.getString("description").uppercase(Locale("ru"))
-                        icon = decodeOpenWeatherIcon(weatherObj.getString("icon"))
-                    }
-
-                    val formattedWeather = "$icon $tempString $description".trim()
+                    val formattedWeather = "$icon $tempString".trim()
 
                     handler.post {
                         currentWeatherText = formattedWeather
@@ -153,17 +153,24 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun decodeOpenWeatherIcon(iconCode: String): String {
-        return when (iconCode.take(2)) {
-            "01" -> "☀️" // clear sky
-            "02" -> "⛅" // few clouds
-            "03" -> "☁️" // scattered clouds
-            "04" -> "☁️" // broken/overcast clouds
-            "09" -> "🌧️" // shower rain
-            "10" -> "🌧️" // rain
-            "11" -> "🌩️" // thunderstorm
-            "13" -> "❄️" // snow
-            "50" -> "🌫️" // mist/fog
+    private fun decodeWmoWeatherCode(code: Int): String {
+        return when (code) {
+            0 -> "☀️"            // Clear sky
+            1 -> "🌤️"           // Mainly clear
+            2 -> "⛅"            // Partly cloudy
+            3 -> "☁️"            // Overcast
+            45, 48 -> "🌫️"       // Fog
+            51, 53, 55 -> "🌦️"   // Drizzle
+            56, 57 -> "🌧️"       // Freezing Drizzle
+            61, 63 -> "🌧️"       // Rain
+            65 -> "🌧️💥"         // Heavy Rain
+            66, 67 -> "🧊🌧️"     // Freezing Rain
+            71, 73, 75 -> "🌨️"   // Snow fall
+            77 -> "❄️"           // Snow grains
+            80, 81, 82 -> "🌧️⚡" // Rain showers
+            85, 86 -> "❄️🌨️"     // Snow showers
+            95 -> "🌩️"          // Thunderstorm
+            96, 99 -> "⛈️"       // Thunderstorm with hail
             else -> "🌡️"
         }
     }
